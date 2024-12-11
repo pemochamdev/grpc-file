@@ -1,0 +1,40 @@
+payment_system/
+├── app/
+│   ├── __init__.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── merchant.py
+│   │   ├── transaction.py
+│   │   ├── refund.py
+│   │   ├── document.py
+│   │   └── balance.py
+│   ├── providers/
+│   │   ├── __init__.py
+│   │   ├── base_provider.py
+│   │   └── paypal_provider.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── merchant_service.py
+│   │   ├── transaction_service.py
+│   │   ├── refund_service.py
+│   │   └── balance_service.py
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── security.py
+│   │   ├── validation.py
+│   │   ├── logger.py
+│   │   └── idempotency.py
+│   ├── config.py
+│   ├── db.py
+│   └── api/
+│       ├── __init__.py
+│       ├── merchant_api.py
+│       ├── transaction_api.py
+│       ├── refund_api.py
+│       └── balance_api.py
+├── proto/
+│   ├── payment.proto
+├── requirements.txt
+├── docker-compose.yml
+└── README.md

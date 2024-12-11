@@ -1,0 +1,322 @@
+syntax = "proto3";
+
+package payment.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+/**
+ * Service principal pour la gestion des paiements.
+ */
+service PaymentService {
+    /**
+     * Inscrit un nouveau marchand dans le système.
+     * @param MerchantRegistration : Informations nécessaires pour l'inscription d'un marchand.
+     * @return MerchantCredentials : Identifiants générés pour le marchand.
+     */
+    rpc RegisterMerchant (MerchantRegistration) returns (MerchantCredentials);
+
+    /**
+     * Traite un paiement pour un marchand.
+     * @param PaymentRequest : Détails du paiement.
+     * @return PaymentResponse : Statut et détails du paiement traité.
+     */
+    rpc ProcessPayment (PaymentRequest) returns (PaymentResponse);
+
+    /**
+     * Valide les identifiants d'un marchand.
+     * @param CredentialsValidation : Identifiants fournis par le marchand.
+     * @return ValidationResponse : Résultat de la validation et permissions associées.
+     */
+    rpc ValidateCredentials (CredentialsValidation) returns (ValidationResponse);
+
+    /**
+     * Récupère le statut d'une transaction donnée.
+     * @param TransactionStatusRequest : Identifiant de la transaction et marchand associé.
+     * @return TransactionStatusResponse : Détails du statut de la transaction.
+     */
+    rpc GetTransactionStatus (TransactionStatusRequest) returns (TransactionStatusResponse);
+
+    /**
+     * Rembourse une transaction.
+     * @param RefundRequest : Détails du remboursement (montant, raison, etc.).
+     * @return RefundResponse : Statut et informations sur le remboursement.
+     */
+    rpc RefundPayment (RefundRequest) returns (RefundResponse);
+
+    /**
+     * Récupère le solde d'un marchand dans une devise donnée.
+     * @param MerchantBalanceRequest : Identifiant du marchand et devise.
+     * @return MerchantBalanceResponse : Soldes disponibles et en attente.
+     */
+    rpc GetMerchantBalance (MerchantBalanceRequest) returns (MerchantBalanceResponse);
+
+    /**
+     * Met à jour les informations du profil d'un marchand.
+     * @param UpdateMerchantRequest : Informations mises à jour du marchand.
+     * @return MerchantProfile : Profil mis à jour du marchand.
+     */
+    rpc UpdateMerchantProfile (UpdateMerchantRequest) returns (MerchantProfile);
+
+    /**
+     * Liste les transactions d'un marchand avec des filtres optionnels.
+     * @param ListTransactionsRequest : Filtres tels que dates, statut, taille de page.
+     * @return ListTransactionsResponse : Liste des transactions et pagination.
+     */
+    rpc ListTransactions (ListTransactionsRequest) returns (ListTransactionsResponse);
+}
+
+/**
+ * Informations nécessaires pour enregistrer un marchand.
+ */
+message MerchantRegistration {
+    string business_name = 1; // Nom commercial du marchand.
+    string email = 2; // Adresse e-mail du marchand.
+    string website = 3; // Site web du marchand.
+    string business_type = 4; // Type d'activité du marchand.
+    string tax_id = 5; // Numéro fiscal du marchand.
+    Address business_address = 6; // Adresse commerciale.
+    string phone_number = 7; // Numéro de téléphone.
+    repeated string accepted_payment_methods = 8; // Méthodes de paiement acceptées.
+    KYCInformation kyc_info = 9; // Informations KYC.
+}
+
+/**
+ * Adresse générique utilisée pour le marchand ou la facturation.
+ */
+message Address {
+    string street_line1 = 1; // Ligne 1 de l'adresse.
+    string street_line2 = 2; // Ligne 2 de l'adresse (optionnelle).
+    string city = 3; // Ville.
+    string state = 4; // État ou région.
+    string postal_code = 5; // Code postal.
+    string country = 6; // Pays.
+}
+
+/**
+ * Informations KYC pour la vérification du marchand.
+ */
+message KYCInformation {
+    string legal_entity_type = 1; // Type d'entité légale.
+    string registration_number = 2; // Numéro d'enregistrement de l'entreprise.
+    repeated Document verification_documents = 3; // Documents pour vérification.
+    string representative_name = 4; // Nom du représentant légal.
+    string representative_id_number = 5; // Numéro d'identité du représentant légal.
+}
+
+/**
+ * Document utilisé pour la vérification KYC.
+ */
+message Document {
+    string type = 1; // Type de document ("ID", "PASSPORT", etc.).
+    string file_url = 2; // URL du fichier du document.
+    string status = 3; // Statut du document (validé, en attente, rejeté).
+}
+
+/**
+ * Identifiants générés pour un marchand après inscription.
+ */
+message MerchantCredentials {
+    string merchant_id = 1; // Identifiant unique du marchand.
+    string api_key = 2; // Clé API.
+    string api_secret = 3; // Secret API.
+    string environment = 4; // Environnement ("test" ou "production").
+    google.protobuf.Timestamp created_at = 5; // Date de création des identifiants.
+    google.protobuf.Timestamp expires_at = 6; // Date d'expiration des identifiants.
+    repeated string permissions = 7; // Permissions accordées au marchand.
+}
+
+
+/**
+ * Requête pour initier un paiement.
+ */
+ message PaymentRequest {
+    string merchant_id = 1; // Identifiant unique du marchand effectuant le paiement.
+    string api_key = 2; // Clé API pour authentifier le marchand.
+    string payment_method = 3; // Méthode de paiement utilisée (ex. "CREDIT_CARD", "PAYPAL").
+    PaymentAmount amount = 4; // Montant du paiement avec devise.
+    string order_id = 5; // Identifiant unique de la commande associée au paiement.
+    map<string, string> metadata = 6; // Métadonnées personnalisées pour ce paiement.
+    CustomerInfo customer = 7; // Informations sur le client effectuant le paiement.
+    BillingInfo billing = 8; // Informations de facturation.
+    string return_url = 9; // URL de redirection après le paiement.
+    string webhook_url = 10; // URL pour les notifications du paiement.
+    string idempotency_key = 11; // Clé pour assurer l'idempotence des requêtes.
+}
+
+/**
+ * Détail du montant d'un paiement.
+ */
+message PaymentAmount {
+    double amount = 1; // Montant de la transaction.
+    string currency = 2; // Devise utilisée (ex. "USD", "EUR").
+}
+
+/**
+ * Informations sur le client effectuant le paiement.
+ */
+message CustomerInfo {
+    string customer_id = 1; // Identifiant unique du client (optionnel).
+    string email = 2; // Adresse e-mail du client.
+    string phone = 3; // Numéro de téléphone du client.
+    string name = 4; // Nom complet du client.
+}
+
+/**
+ * Informations de facturation associées au paiement.
+ */
+message BillingInfo {
+    Address billing_address = 1; // Adresse de facturation du client.
+    string card_holder_name = 2; // Nom du titulaire de la carte.
+}
+
+/**
+ * Réponse après le traitement d'un paiement.
+ */
+message PaymentResponse {
+    string transaction_id = 1; // Identifiant unique de la transaction.
+    string status = 2; // Statut de la transaction ("PENDING", "COMPLETED", "FAILED", "CANCELLED").
+    string error_code = 3; // Code d'erreur en cas d'échec.
+    string error_message = 4; // Message d'erreur descriptif.
+    PaymentAmount amount = 5; // Montant de la transaction.
+    google.protobuf.Timestamp processed_at = 6; // Date et heure du traitement.
+    string payment_method_details = 7; // Détails spécifiques à la méthode de paiement.
+    string receipt_url = 8; // URL pour télécharger le reçu de la transaction.
+}
+
+/**
+ * Requête pour obtenir le statut d'une transaction.
+ */
+message TransactionStatusRequest {
+    string merchant_id = 1; // Identifiant du marchand.
+    string transaction_id = 2; // Identifiant de la transaction.
+}
+
+/**
+ * Réponse contenant le statut d'une transaction.
+ */
+message TransactionStatusResponse {
+    string transaction_id = 1; // Identifiant unique de la transaction.
+    string status = 2; // Statut actuel de la transaction.
+    PaymentAmount amount = 3; // Montant de la transaction.
+    google.protobuf.Timestamp created_at = 4; // Date de création de la transaction.
+    google.protobuf.Timestamp updated_at = 5; // Dernière date de mise à jour.
+}
+
+/**
+ * Requête pour rembourser une transaction.
+ */
+message RefundRequest {
+    string merchant_id = 1; // Identifiant du marchand effectuant le remboursement.
+    string transaction_id = 2; // Identifiant de la transaction à rembourser.
+    PaymentAmount amount = 3; // Montant à rembourser.
+    string reason = 4; // Raison du remboursement.
+}
+
+/**
+ * Réponse après le traitement d'un remboursement.
+ */
+message RefundResponse {
+    string refund_id = 1; // Identifiant unique du remboursement.
+    string status = 2; // Statut du remboursement.
+    PaymentAmount amount = 3; // Montant remboursé.
+    google.protobuf.Timestamp processed_at = 4; // Date et heure du traitement du remboursement.
+}
+
+/**
+ * Requête pour obtenir le solde d'un marchand.
+ */
+message MerchantBalanceRequest {
+    string merchant_id = 1; // Identifiant du marchand.
+    string currency = 2; // Devise pour laquelle le solde est demandé.
+}
+
+/**
+ * Réponse contenant le solde d'un marchand.
+ */
+message MerchantBalanceResponse {
+    repeated Balance balances = 1; // Liste des soldes par devise.
+    google.protobuf.Timestamp as_of = 2; // Date et heure de la récupération du solde.
+}
+
+/**
+ * Solde d'un marchand dans une devise spécifique.
+ */
+message Balance {
+    string currency = 1; // Devise (ex. "USD").
+    double available = 2; // Solde disponible.
+    double pending = 3; // Solde en attente (non encore réglé).
+}
+
+/**
+ * Requête pour mettre à jour le profil d'un marchand.
+ */
+message UpdateMerchantRequest {
+    string merchant_id = 1; // Identifiant du marchand.
+    MerchantProfile profile = 2; // Nouveau profil du marchand.
+}
+
+/**
+ * Profil d'un marchand.
+ */
+message MerchantProfile {
+    string business_name = 1; // Nom commercial.
+    string email = 2; // Adresse e-mail.
+    string website = 3; // Site web.
+    Address business_address = 4; // Adresse commerciale.
+    string phone_number = 5; // Numéro de téléphone.
+    repeated string accepted_payment_methods = 6; // Méthodes de paiement acceptées.
+    map<string, string> settings = 7; // Paramètres personnalisés du marchand.
+}
+
+/**
+ * Requête pour lister les transactions d'un marchand.
+ */
+message ListTransactionsRequest {
+    string merchant_id = 1; // Identifiant du marchand.
+    google.protobuf.Timestamp start_date = 2; // Date de début de la plage.
+    google.protobuf.Timestamp end_date = 3; // Date de fin de la plage.
+    string status = 4; // Filtrer par statut (ex. "COMPLETED").
+    int32 page_size = 5; // Taille de la page.
+    string page_token = 6; // Jeton pour paginer les résultats.
+}
+
+/**
+ * Réponse contenant la liste des transactions.
+ */
+message ListTransactionsResponse {
+    repeated Transaction transactions = 1; // Liste des transactions.
+    string next_page_token = 2; // Jeton pour récupérer la page suivante.
+    int32 total_count = 3; // Nombre total de transactions correspondant.
+}
+
+/**
+ * Détails d'une transaction.
+ */
+message Transaction {
+    string transaction_id = 1; // Identifiant unique de la transaction.
+    string status = 2; // Statut de la transaction.
+    PaymentAmount amount = 3; // Montant de la transaction.
+    string payment_method = 4; // Méthode de paiement utilisée.
+    google.protobuf.Timestamp created_at = 5; // Date de création.
+    CustomerInfo customer = 6; // Informations sur le client.
+    map<string, string> metadata = 7; // Métadonnées personnalisées.
+}
+
+/**
+ * Requête pour valider les identifiants d'un marchand.
+ */
+message CredentialsValidation {
+    string merchant_id = 1; // Identifiant du marchand.
+    string api_key = 2; // Clé API à valider.
+}
+
+/**
+ * Réponse après validation des identifiants.
+ */
+message ValidationResponse {
+    bool is_valid = 1; // Indique si les identifiants sont valides.
+    repeated string permissions = 2; // Permissions associées à ces identifiants.
+    google.protobuf.Timestamp expires_at = 3; // Date d'expiration des identifiants.
+}
+
